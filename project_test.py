@@ -3,11 +3,32 @@ from fastai.vision.all import *
 from io import BytesIO
 from PIL import Image
 from pyngrok import ngrok  # Import Ngrok
-
-ngrok.set_auth_token("2emw600hVIiCaCnjg82wtdaNI7U_78ASLSYN62q19t8nqAVz9")
+import os
+from azure.storage.blob import BlobServiceClient
 
 # Load the FastAI learner
-learn = load_learner("fastai_model2.pkl")
+# learn = load_learner("fastai_model2.pkl")
+
+connect_str = "DefaultEndpointsProtocol=https;AccountName=mystorageproject13;AccountKey=73tbI58kizlW2WzbBmWnj3m41WhUfyN4k4Nq15+tsDMVm9xTDgKtBs0eW2E+4WQ0iCXo+EeURCzX+AStY5MJ6A==;EndpointSuffix=core.windows.net"  # Connection string
+
+container_name = "mycontainerblob"
+blob_name = "fastai_model2.pkl"
+
+# Azure Blob Service client
+blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+
+# Function to load model from Azure Blob Storage
+def load_model_from_azure_blob():
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    with open("temp_model.pkl", "wb") as download_file:
+        download_file.write(blob_client.download_blob().readall())
+    try:
+        return load_learner("temp_model.pkl")
+    except Exception as e:
+        return jsonify({"error": "Failed to load model: {}".format(str(e))}), 500
+
+# Load the model (ensure model is in the container before starting the app)
+learn = load_model_from_azure_blob()  # Call the function to load from Azure Blob
 
 # Function to predict label for an image
 def predict_image(img):
